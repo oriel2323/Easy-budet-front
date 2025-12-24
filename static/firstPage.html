@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Budget AI - שליטה פיננסית חכמה</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap');
+
+        body {
+            font-family: 'Heebo', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-bg {
+            background-color: #ffffff;
+        }
+
+        .floating-card {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+            pointer-events: none;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+    <!-- LANDING -->
+    <div id="landingPage"
+        class="fixed inset-0 z-50 bg-[#0f172a] text-white overflow-y-auto transition-opacity duration-500">
+        <nav class="flex justify-between items-center p-6 max-w-7xl mx-auto">
+            <div class="flex items-center gap-2 text-2xl font-bold">
+                <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-robot text-sm"></i>
+                </div>
+                <span>Budget AI</span>
+            </div>
+            <div class="hidden md:flex gap-8 text-sm font-medium text-gray-300">
+                <a href="#" class="hover:text-white transition">איך זה עובד?</a>
+                <a href="#" class="hover:text-white transition">פיצ'רים</a>
+                <a href="#" class="hover:text-white transition">מחירים</a>
+            </div>
+            <!-- changed to show login modal -->
+            <button onclick="showAuthModal('login')"
+                class="px-5 py-2 rounded-full border border-white/20 hover:bg-white/10 transition text-sm">
+                התחברות
+            </button>
+        </nav>
+
+        <div class="max-w-7xl mx-auto px-6 py-20 flex flex-col md:flex-row items-center gap-12">
+            <div class="flex-1 text-center md:text-right space-y-8">
+                <div
+                    class="inline-block px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium mb-4">
+                    ✨ בינה מלאכותית לניהול הכסף שלך
+                </div>
+                <h1 class="text-5xl md:text-7xl font-black leading-tight">
+                    תפסיק לנחש,<br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">תתחיל
+                        לשלוט.</span>
+                </h1>
+                <p class="text-xl text-gray-400 max-w-2xl mx-auto md:mx-0 leading-relaxed">
+                    הפלטפורמה החכמה שמנתחת את ההוצאות שלך, חוזה את העתיד הכלכלי שלך ועוזרת לך לחסוך בצורה אוטומטית -
+                    והכל במקום אחד.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start pt-4">
+                    <button onclick="showAuthModal('register')"
+                        class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-500/30 transition transform hover:scale-105 flex items-center justify-center gap-3">
+                        התחל בחינם עכשיו
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <button
+                        class="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium border border-white/10 transition">
+                        צפה בדמו
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 relative w-full max-w-lg">
+                <div class="floating-card glass-panel rounded-2xl p-6 relative z-10 shadow-2xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <p class="text-gray-400 text-xs">יתרה נוכחית</p>
+                            <p class="text-3xl font-bold">₪12,450</p>
+                        </div>
+                        <div
+                            class="w-10 h-10 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </div>
+                    </div>
+                    <div class="h-24 flex items-end justify-between gap-2 mb-6">
+                        <div class="w-full bg-indigo-500/20 rounded-t h-[40%]"></div>
+                        <div class="w-full bg-indigo-500/40 rounded-t h-[60%]"></div>
+                        <div class="w-full bg-indigo-500/30 rounded-t h-[30%]"></div>
+                        <div class="w-full bg-indigo-500/60 rounded-t h-[80%]"></div>
+                        <div class="w-full bg-indigo-500 rounded-t h-[50%]"></div>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
+                            <div
+                                class="w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                                <i class="fa-solid fa-burger"></i></div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium">מסעדה</p>
+                                <p class="text-xs text-gray-500">לפני שעה</p>
+                            </div>
+                            <p class="font-bold text-red-400">-₪120</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="absolute -top-10 -right-10 glass-panel p-4 rounded-xl animate-[float_5s_ease-in-out_infinite_1s] z-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <span class="text-sm font-medium">ה-AI מנתח...</span>
+                    </div>
+                </div>
+
+                <div
+                    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/30 blur-[100px] -z-10 rounded-full">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="appContainer"
+        class="hidden min-h-screen flex flex-col md:flex-row opacity-0 transition-opacity duration-700">
+        <aside class="w-full md:w-64 bg-white shadow-lg z-10">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-8">
+                    <div
+                        class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold gradient-text">Budget AI</h1>
+                </div>
+                <nav class="space-y-2">
+                    <a href="#"
+                        class="flex items-center gap-3 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-medium">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        דשבורד
+                    </a>
+                    <a href="#"
+                        class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors">
+                        <i class="fa-solid fa-wallet"></i>
+                        ארנק
+                    </a>
+                    <a href="#"
+                        class="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors">
+                        <i class="fa-solid fa-bullseye"></i>
+                        יעדים
+                    </a>
+                </nav>
+            </div>
+
+            <div class="mt-auto p-6 border-t border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium" id="currentUserLabel">משתמש אורח</p>
+                        <button onclick="logout()" class="text-xs text-red-500 hover:underline">התנתק</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">סקירה כללית</h2>
+                    <p class="text-gray-500">ברוך הבא למערכת הניהול שלך.</p>
+                </div>
+                <button onclick="openModal()"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl shadow-lg transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> הוסף
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-sm text-gray-500">יתרה נוכחית</p>
+                    <h3 class="text-3xl font-bold text-gray-800 mt-1" id="balanceDisplay">₪0</h3>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-sm text-gray-500">הכנסות</p>
+                    <h3 class="text-3xl font-bold text-green-600 mt-1" id="incomeDisplay">₪0</h3>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-sm text-gray-500">הוצאות</p>
+                    <h3 class="text-3xl font-bold text-red-600 mt-1" id="expenseDisplay">₪0</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div
+                    class="bg-gradient-to-r from-indigo-900 to-purple-900 text-white p-6 rounded-2xl lg:col-span-2 relative overflow-hidden shadow-xl">
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-3">
+                            <i class="fa-solid fa-sparkles text-yellow-300"></i>
+                            <h3 class="font-bold">ניתוח AI חכם</h3>
+                        </div>
+                        <p class="text-indigo-100 text-sm leading-relaxed" id="aiInsightText">אין מספיק נתונים לניתוח.
+                            הוסף הוצאות כדי לקבל תובנות.</p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 class="font-bold text-gray-700 mb-4">התפלגות</h3>
+                    <canvas id="expensesChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-6 border-b border-gray-50">
+                    <h3 class="font-bold text-gray-800">תנועות אחרונות</h3>
+                </div>
+                <table class="w-full text-right">
+                    <tbody id="transactionsList" class="text-sm text-gray-600"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Form (transactions) -->
+    <div id="transactionModal"
+        class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 m-4 animate-[fadeIn_0.3s_ease-out]">
+            <h3 class="text-xl font-bold mb-4">הוסף תנועה</h3>
+            <form id="addForm" class="space-y-4">
+                <div class="flex bg-gray-100 p-1 rounded-lg">
+                    <label
+                        class="flex-1 cursor-pointer text-center py-2 rounded-md has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                        <input type="radio" name="type" value="expense" checked class="hidden"> הוצאה
+                    </label>
+                    <label
+                        class="flex-1 cursor-pointer text-center py-2 rounded-md has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                        <input type="radio" name="type" value="income" class="hidden"> הכנסה
+                    </label>
+                </div>
+                <input type="text" name="desc" placeholder="תיאור" required class="w-full p-2 border rounded-lg">
+                <input type="number" name="amount" placeholder="סכום" required class="w-full p-2 border rounded-lg">
+                <select name="category" class="w-full p-2 border rounded-lg bg-white">
+                    <option value="food">מזון</option>
+                    <option value="transport">תחבורה</option>
+                    <option value="bills">חשבונות</option>
+                    <option value="entertainment">בילויים</option>
+                    <option value="salary">משכורת</option>
+                </select>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-2 text-gray-500">ביטול</button>
+                    <button type="submit" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg">שמור</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Auth Modal (login/register) -->
+    <div id="authModal" class="fixed inset-0 bg-black/50 z-[100] hidden items-center justify-center">
+        <div class="bg-white rounded-2xl w-full max-w-xl p-6 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="authTitle" class="text-xl font-bold">התחברות</h3>
+                <button onclick="hideAuthModal()" class="text-gray-500">סגור</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="loginForm" class="space-y-4">
+                <div class="grid grid-cols-1 gap-2">
+                    <input id="loginEmail" type="email" placeholder="אימייל" required class="p-2 border rounded-lg" />
+                    <input id="loginPassword" type="password" placeholder="סיסמה" required
+                        class="p-2 border rounded-lg" />
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg">התחבר</button>
+                        <button type="button" onclick="switchAuthMode('register')"
+                            class="flex-1 py-2 border rounded-lg">אין חשבון? הירשם</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- REGISTER FORM (hidden by default) -->
+            <form id="registerForm" class="space-y-4 hidden">
+                <div class="grid grid-cols-1 gap-2">
+                    <input id="regEmail" type="email" placeholder="אימייל" required class="p-2 border rounded-lg" />
+                    <input id="regName" type="text" placeholder="שם מלא (אופציונלי)" class="p-2 border rounded-lg" />
+                    <input id="regPassword" type="password" placeholder="סיסמה" required
+                        class="p-2 border rounded-lg" />
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg">הרשם</button>
+                        <button type="button" onclick="switchAuthMode('login')" class="flex-1 py-2 border rounded-lg">יש
+                            לי חשבון</button>
+                    </div>
+                </div>
+            </form>
+
+            <div id="authMessage" class="text-sm text-red-500 mt-3"></div>
+        </div>
+    </div>
+
+    <script>
+        // --------------- CONFIG ----------------
+        const API_BASE = "https://easy-budget-backend.onrender.com"; // <-- עדכן כאן אם צריך
+
+        // --- Navigation / UI helpers ---
+        function enterApp() {
+            const landing = document.getElementById('landingPage');
+            const app = document.getElementById('appContainer');
+            landing.style.opacity = '0';
+            setTimeout(() => {
+                landing.style.display = 'none';
+                app.classList.remove('hidden');
+                setTimeout(() => { app.style.opacity = '1'; }, 50);
+            }, 500);
+        }
+        function logout() {
+            localStorage.removeItem('user_id');
+            document.getElementById('currentUserLabel').textContent = 'משתמש אורח';
+            location.reload();
+        }
+
+        // --- Auth modal controls ---
+        function showAuthModal(mode = 'login') {
+            document.getElementById('authModal').classList.remove('hidden');
+            switchAuthMode(mode);
+        }
+        function hideAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('authMessage').textContent = '';
+        }
+        function switchAuthMode(mode) {
+            const loginF = document.getElementById('loginForm');
+            const regF = document.getElementById('registerForm');
+            const title = document.getElementById('authTitle');
+            if (mode === 'login') {
+                loginF.classList.remove('hidden');
+                regF.classList.add('hidden');
+                title.textContent = 'התחברות';
+            } else {
+                loginF.classList.add('hidden');
+                regF.classList.remove('hidden');
+                title.textContent = 'הרשמה';
+            }
+            document.getElementById('authMessage').textContent = '';
+        }
+
+        // --- API helpers (auth) ---
+        async function apiPost(path, body) {
+            try {
+                const res = await fetch(API_BASE + path, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                return data;
+            } catch (err) {
+                return { success: false, message: "Network error" };
+            }
+        }
+
+        async function registerUser(email, password, full_name) {
+            return await apiPost('/auth/register', { email, password, full_name });
+        }
+        async function loginUser(email, password) {
+            return await apiPost('/auth/login', { email, password });
+        }
+
+        // --- Hook auth forms ---
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            document.getElementById('authMessage').textContent = 'טוען...';
+            const result = await loginUser(email, password);
+            if (result.success) {
+                localStorage.setItem('user_id', result.user_id);
+                document.getElementById('currentUserLabel').textContent = email;
+                document.getElementById('authMessage').textContent = '';
+                hideAuthModal();
+                enterApp();
+            } else {
+                document.getElementById('authMessage').textContent = result.message || 'התחברות נכשלה';
+            }
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('regEmail').value.trim();
+            const name = document.getElementById('regName').value.trim();
+            const password = document.getElementById('regPassword').value;
+            document.getElementById('authMessage').textContent = 'יוצר משתמש...';
+            const result = await registerUser(email, password, name);
+            if (result.success) {
+                // אחרי הרשמה — נכנסים אוטומט
+                localStorage.setItem('user_id', result.user_id);
+                document.getElementById('currentUserLabel').textContent = email;
+                document.getElementById('authMessage').textContent = '';
+                hideAuthModal();
+                enterApp();
+            } else {
+                document.getElementById('authMessage').textContent = result.message || 'הרשמה נכשלה';
+            }
+        });
+
+        // --- App logic (existing localStorage-based) ---
+        let transactions = JSON.parse(localStorage.getItem('budget_transactions')) || [];
+        let myChart = null;
+        function updateDashboard() {
+            const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+            const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+            const balance = income - expense;
+            document.getElementById('balanceDisplay').textContent = `₪${balance.toLocaleString()}`;
+            document.getElementById('incomeDisplay').textContent = `₪${income.toLocaleString()}`;
+            document.getElementById('expenseDisplay').textContent = `₪${expense.toLocaleString()}`;
+            const listEl = document.getElementById('transactionsList');
+            listEl.innerHTML = '';
+            [...transactions].reverse().slice(0, 5).forEach(t => {
+                const isIncome = t.type === 'income';
+                listEl.innerHTML += `
+                    <tr class="border-b last:border-0 hover:bg-gray-50">
+                        <td class="p-4">${t.desc}</td>
+                        <td class="p-4 text-gray-400 text-xs">${new Date(t.date).toLocaleDateString()}</td>
+                        <td class="p-4 font-bold ${isIncome ? 'text-green-600' : 'text-red-600'}" dir="ltr">
+                            ${isIncome ? '+' : '-'}₪${t.amount.toLocaleString()}
+                        </td>
+                    </tr>
+                `;
+            });
+            updateChart();
+            updateAI(income, expense);
+            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
+        }
+        function updateChart() {
+            const ctx = document.getElementById('expensesChart').getContext('2d');
+            const expenses = transactions.filter(t => t.type === 'expense');
+            const categories = {};
+            expenses.forEach(t => categories[t.category] = (categories[t.category] || 0) + t.amount);
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{ data: Object.values(categories), backgroundColor: ['#6366f1', '#ec4899', '#8b5cf6', '#10b981', '#f59e0b'] }]
+                },
+                options: { cutout: '75%', plugins: { legend: { display: false } } }
+            });
+        }
+        function updateAI(inc, exp) {
+            const el = document.getElementById('aiInsightText');
+            if (inc === 0 && exp === 0) return;
+            if (exp > inc) el.textContent = "⚠️ התראה: ההוצאות עולות על ההכנסות. מומלץ לצמצם הוצאות מיותרות.";
+            else if (exp / inc < 0.5) el.textContent = "🌟 מצוין! אתה חוסך יותר מ-50% מההכנסה. שקול להשקיע את העודפים.";
+            else el.textContent = "התקציב מאוזן. המשך לעקוב אחר ההוצאות בקטגוריית 'בילויים'.";
+        }
+
+        document.getElementById('addForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            transactions.push({
+                id: Date.now(),
+                type: fd.get('type'),
+                desc: fd.get('desc'),
+                amount: Number(fd.get('amount')),
+                category: fd.get('category'),
+                date: new Date().toISOString()
+            });
+            updateDashboard();
+            closeModal();
+            e.target.reset();
+        });
+        function openModal() { document.getElementById('transactionModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('transactionModal').classList.add('hidden'); }
+
+        // --- Init on load ---
+        (function init() {
+            const savedUser = localStorage.getItem('user_id');
+            if (savedUser) {
+                document.getElementById('currentUserLabel').textContent = 'מוזמן_' + savedUser;
+                // אם רוצים — אפשר לנסות לקרוא API לעוד פרטים
+            }
+            updateDashboard();
+        })();
+
+        // Optional: health-check endpoint quick test
+        async function checkHealth() {
+            try {
+                const r = await fetch(API_BASE + '/health');
+                if (r.ok) console.log('backend health ok');
+            } catch { }
+        }
+        // checkHealth(); // אפשר להפעיל לבדיקה
+    </script>
+</body>
+
+</html>
