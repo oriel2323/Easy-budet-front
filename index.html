@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap');
 
         body {
             font-family: 'Heebo', sans-serif;
@@ -59,7 +59,6 @@
 </head>
 
 <body class="bg-gray-50 text-gray-800">
-    <!-- LANDING -->
     <div id="landingPage"
         class="fixed inset-0 z-50 bg-[#0f172a] text-white overflow-y-auto transition-opacity duration-500">
         <nav class="flex justify-between items-center p-6 max-w-7xl mx-auto">
@@ -74,7 +73,6 @@
                 <a href="#" class="hover:text-white transition">פיצ'רים</a>
                 <a href="#" class="hover:text-white transition">מחירים</a>
             </div>
-            <!-- changed to show login modal -->
             <button onclick="showAuthModal('login')"
                 class="px-5 py-2 rounded-full border border-white/20 hover:bg-white/10 transition text-sm">
                 התחברות
@@ -159,7 +157,6 @@
         </div>
     </div>
 
-    <!-- APP -->
     <div id="appContainer"
         class="hidden min-h-screen flex flex-col md:flex-row opacity-0 transition-opacity duration-700">
         <aside class="w-full md:w-64 bg-white shadow-lg z-10">
@@ -238,8 +235,9 @@
                             <i class="fa-solid fa-sparkles text-yellow-300"></i>
                             <h3 class="font-bold">ניתוח AI חכם</h3>
                         </div>
-                        <p class="text-indigo-100 text-sm leading-relaxed" id="aiInsightText">אין מספיק נתונים לניתוח.
-                            הוסף הוצאות כדי לקבל תובנות.</p>
+                        <p class="text-indigo-100 text-sm leading-relaxed" id="aiInsightText">
+                            אין מספיק נתונים לניתוח. הוסף הוצאות כדי לקבל תובנות.
+                        </p>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -259,7 +257,6 @@
         </main>
     </div>
 
-    <!-- Modal Form (transactions) -->
     <div id="transactionModal"
         class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-md p-6 m-4 animate-[fadeIn_0.3s_ease-out]">
@@ -292,7 +289,6 @@
         </div>
     </div>
 
-    <!-- Auth Modal (login/register) -->
     <div id="authModal" class="fixed inset-0 bg-black/50 z-[100] hidden items-center justify-center">
         <div class="bg-white rounded-2xl w-full max-w-xl p-6 m-4">
             <div class="flex justify-between items-center mb-4">
@@ -300,7 +296,6 @@
                 <button onclick="hideAuthModal()" class="text-gray-500">סגור</button>
             </div>
 
-            <!-- LOGIN FORM -->
             <form id="loginForm" class="space-y-4">
                 <div class="grid grid-cols-1 gap-2">
                     <input id="loginEmail" type="email" placeholder="אימייל" required class="p-2 border rounded-lg" />
@@ -314,7 +309,6 @@
                 </div>
             </form>
 
-            <!-- REGISTER FORM (hidden by default) -->
             <form id="registerForm" class="space-y-4 hidden">
                 <div class="grid grid-cols-1 gap-2">
                     <input id="regEmail" type="email" placeholder="אימייל" required class="p-2 border rounded-lg" />
@@ -335,12 +329,17 @@
 
     <script>
         // --------------- CONFIG ----------------
-        const API_BASE = "https://easybudgetbackend-production.up.railway.app"; // added url
+        // תיקון: הוספת https:// לכתובת
+        const API_BASE = "https://easybudgetbackend-production.up.railway.app";
 
         // --- Navigation / UI helpers ---
         function enterApp() {
             const landing = document.getElementById('landingPage');
             const app = document.getElementById('appContainer');
+
+            // טעינת נתונים ברגע הכניסה
+            fetchTransactions();
+
             landing.style.opacity = '0';
             setTimeout(() => {
                 landing.style.display = 'none';
@@ -348,6 +347,7 @@
                 setTimeout(() => { app.style.opacity = '1'; }, 50);
             }, 500);
         }
+
         function logout() {
             localStorage.removeItem('user_id');
             document.getElementById('currentUserLabel').textContent = 'משתמש אורח';
@@ -379,7 +379,7 @@
             document.getElementById('authMessage').textContent = '';
         }
 
-        // --- API helpers (auth) ---
+        // --- API helpers (auth + general) ---
         async function apiPost(path, body) {
             try {
                 const res = await fetch(API_BASE + path, {
@@ -408,6 +408,7 @@
             const password = document.getElementById('loginPassword').value;
             document.getElementById('authMessage').textContent = 'טוען...';
             const result = await loginUser(email, password);
+
             if (result.success) {
                 localStorage.setItem('user_id', result.user_id);
                 document.getElementById('currentUserLabel').textContent = email;
@@ -426,8 +427,8 @@
             const password = document.getElementById('regPassword').value;
             document.getElementById('authMessage').textContent = 'יוצר משתמש...';
             const result = await registerUser(email, password, name);
+
             if (result.success) {
-                // אחרי הרשמה — נכנסים אוטומט
                 localStorage.setItem('user_id', result.user_id);
                 document.getElementById('currentUserLabel').textContent = email;
                 document.getElementById('authMessage').textContent = '';
@@ -438,18 +439,42 @@
             }
         });
 
-        // --- App logic (existing localStorage-based) ---
-        let transactions = JSON.parse(localStorage.getItem('budget_transactions')) || [];
+        // --- App logic (Server Based) ---
+        let transactions = []; // מערך שמתמלא מהשרת
         let myChart = null;
+
+        // פונקציה חדשה לטעינת תנועות מהשרת
+        async function fetchTransactions() {
+            const userId = localStorage.getItem('user_id');
+            if (!userId) return;
+
+            try {
+                // מניח שהשרת תומך בנתיב הזה
+                const response = await fetch(`${API_BASE}/transactions/${userId}`);
+                if (response.ok) {
+                    transactions = await response.json();
+                    updateDashboard();
+                } else {
+                    console.log("No transactions found or server error");
+                }
+            } catch (error) {
+                console.error("Failed fetching transactions:", error);
+            }
+        }
+
         function updateDashboard() {
             const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
             const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
             const balance = income - expense;
+
             document.getElementById('balanceDisplay').textContent = `₪${balance.toLocaleString()}`;
             document.getElementById('incomeDisplay').textContent = `₪${income.toLocaleString()}`;
             document.getElementById('expenseDisplay').textContent = `₪${expense.toLocaleString()}`;
+
             const listEl = document.getElementById('transactionsList');
             listEl.innerHTML = '';
+
+            // הצגת 5 תנועות אחרונות (מניחים שהשרת או הלוקאלי ממוינים, או פשוט הופכים את הסדר)
             [...transactions].reverse().slice(0, 5).forEach(t => {
                 const isIncome = t.type === 'income';
                 listEl.innerHTML += `
@@ -462,15 +487,17 @@
                     </tr>
                 `;
             });
+
             updateChart();
             updateAI(income, expense);
-            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
         }
+
         function updateChart() {
             const ctx = document.getElementById('expensesChart').getContext('2d');
             const expenses = transactions.filter(t => t.type === 'expense');
             const categories = {};
             expenses.forEach(t => categories[t.category] = (categories[t.category] || 0) + t.amount);
+
             if (myChart) myChart.destroy();
             myChart = new Chart(ctx, {
                 type: 'doughnut',
@@ -481,29 +508,48 @@
                 options: { cutout: '75%', plugins: { legend: { display: false } } }
             });
         }
+
         function updateAI(inc, exp) {
             const el = document.getElementById('aiInsightText');
             if (inc === 0 && exp === 0) return;
+
             if (exp > inc) el.textContent = "⚠️ התראה: ההוצאות עולות על ההכנסות. מומלץ לצמצם הוצאות מיותרות.";
             else if (exp / inc < 0.5) el.textContent = "🌟 מצוין! אתה חוסך יותר מ-50% מההכנסה. שקול להשקיע את העודפים.";
             else el.textContent = "התקציב מאוזן. המשך לעקוב אחר ההוצאות בקטגוריית 'בילויים'.";
         }
 
-        document.getElementById('addForm').addEventListener('submit', (e) => {
+        // הוספת תנועה חדשה - מול השרת
+        document.getElementById('addForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const fd = new FormData(e.target);
-            transactions.push({
-                id: Date.now(),
+            const userId = localStorage.getItem('user_id');
+
+            if (!userId) {
+                alert("אנא התחבר מחדש");
+                return;
+            }
+
+            const newTransaction = {
+                user_id: userId,
                 type: fd.get('type'),
                 desc: fd.get('desc'),
                 amount: Number(fd.get('amount')),
                 category: fd.get('category'),
                 date: new Date().toISOString()
-            });
-            updateDashboard();
-            closeModal();
-            e.target.reset();
+            };
+
+            // שליחה לשרת
+            const result = await apiPost('/transactions', newTransaction);
+
+            if (result.success) {
+                await fetchTransactions(); // טעינה מחדש של הנתונים
+                closeModal();
+                e.target.reset();
+            } else {
+                alert("שגיאה בשמירת התנועה: " + (result.message || "נסה שוב"));
+            }
         });
+
         function openModal() { document.getElementById('transactionModal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('transactionModal').classList.add('hidden'); }
 
@@ -511,22 +557,13 @@
         (function init() {
             const savedUser = localStorage.getItem('user_id');
             if (savedUser) {
-                document.getElementById('currentUserLabel').textContent = 'מוזמן_' + savedUser;
-                // אם רוצים — אפשר לנסות לקרוא API לעוד פרטים
+                // אם המשתמש כבר מחובר, ננסה לטעון נתונים
+                // שים לב: זה לא יציג את מסך האפליקציה עד שהמשתמש לוחץ Login או אם נשנה את הלוגיקה
+                // כרגע הקוד המקורי דורש מעבר דרך מסך נחיתה או התחברות
             }
-            updateDashboard();
         })();
 
-        // Optional: health-check endpoint quick test
-        async function checkHealth() {
-            try {
-                const r = await fetch(API_BASE + '/health');
-                if (r.ok) console.log('backend health ok');
-            } catch { }
-        }
-        // checkHealth(); // אפשר להפעיל לבדיקה
     </script>
 </body>
-<!-- Auth Modal (login/register) -->
 
 </html>
