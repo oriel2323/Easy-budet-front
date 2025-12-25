@@ -335,7 +335,7 @@
 
     <script>
         // --------------- CONFIG ----------------
-        const API_BASE = "https://easybudgetbackend-production.up.railway.app"; // added url erase /auth
+        const API_BASE = "https://easybudgetbackend-production.up.railway.app/auth"; // added url
 
         // --- Navigation / UI helpers ---
         function enterApp() {
@@ -379,7 +379,7 @@
             document.getElementById('authMessage').textContent = '';
         }
 
-        // --- API helpers (auth) -----
+        // --- API helpers (auth) ---
         async function apiPost(path, body) {
             try {
                 const res = await fetch(API_BASE + path, {
