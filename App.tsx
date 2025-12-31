@@ -3,7 +3,7 @@ import { LandingPage } from './components/LandingPage';
 import { BudgetWizard } from './components/BudgetWizard';
 import { ReportView } from './components/ReportView';
 import { api } from './services/api';
-import { X, User, LogOut } from 'lucide-react';
+import { X, User, LogOut, Loader2 } from 'lucide-react';
 
 type ViewState = 'landing' | 'wizard' | 'report';
 
@@ -13,6 +13,9 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   
+  // Routing State
+  const [isCheckingRoute, setIsCheckingRoute] = useState(false);
+  
   // Auth Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,12 +23,28 @@ function App() {
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Check for existing session
+  // Helper to decide where to send the user
+  const routeUser = async (id: number) => {
+    setIsCheckingRoute(true);
+    try {
+        // Try to fetch profile. If successful, they have started the process -> Go to Report
+        await api.businessProfile.get(id);
+        setView('report');
+    } catch (e) {
+        // If error (usually 404), they haven't set up profile -> Go to Wizard
+        setView('wizard');
+    } finally {
+        setIsCheckingRoute(false);
+    }
+  };
+
+  // Check for existing session on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('budget_user_id');
     if (storedUser) {
-        setUserId(parseInt(storedUser));
-        setView('wizard');
+        const id = parseInt(storedUser);
+        setUserId(id);
+        routeUser(id);
     }
   }, []);
 
@@ -46,11 +65,20 @@ function App() {
             setUserId(res.user_id);
             localStorage.setItem('budget_user_id', res.user_id.toString());
             setShowAuthModal(false);
-            setView('wizard');
+            
             // Reset form
             setEmail('');
             setPassword('');
             setFullName('');
+
+            // Routing Logic
+            if (authMode === 'register') {
+                // New registration always needs setup
+                setView('wizard');
+            } else {
+                // Login: Check if they already have data
+                await routeUser(res.user_id);
+            }
         } else {
             setAuthError(res.message || 'שגיאה בהתחברות');
         }
@@ -73,23 +101,46 @@ function App() {
     setShowAuthModal(true);
   };
 
+  // Loading Screen for Routing
+  if (isCheckingRoute) {
+      return (
+          <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center animate-fadeIn">
+              <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
+                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+                  <h2 className="text-xl font-bold text-gray-800">טוען נתונים...</h2>
+                  <p className="text-gray-500 mt-2">אנא המתן בזמן שאנחנו מכינים את האזור האישי שלך</p>
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 relative" dir="rtl">
         {/* Top User Bar (Visible when logged in) */}
         {userId && view !== 'landing' && (
-            <div className="bg-white border-b px-6 py-3 flex justify-between items-center sticky top-0 z-40 shadow-sm">
+            <div className="bg-white border-b px-6 py-3 flex justify-between items-center sticky top-0 z-40 shadow-sm print:hidden">
                 <div className="flex items-center gap-2 font-bold text-indigo-700">
                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
                         <User className="w-5 h-5" />
                    </div>
                    <span>אזור אישי</span>
                 </div>
-                <button 
-                    onClick={handleLogout}
-                    className="text-gray-500 hover:text-red-500 text-sm flex items-center gap-1 transition-colors"
-                >
-                    <LogOut className="w-4 h-4" /> התנתק
-                </button>
+                <div className="flex items-center gap-4">
+                    {view === 'report' && (
+                        <button 
+                            onClick={() => setView('wizard')}
+                            className="text-sm font-medium text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition"
+                        >
+                            ערוך נתונים
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleLogout}
+                        className="text-gray-500 hover:text-red-500 text-sm flex items-center gap-1 transition-colors px-3 py-1.5 hover:bg-red-50 rounded-lg"
+                    >
+                        <LogOut className="w-4 h-4" /> התנתק
+                    </button>
+                </div>
             </div>
         )}
 
@@ -177,9 +228,10 @@ function App() {
                         <button 
                             type="submit" 
                             disabled={authLoading}
-                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition disabled:opacity-70 mt-2"
+                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition disabled:opacity-70 mt-2 flex items-center justify-center gap-2"
                         >
-                            {authLoading ? 'טוען...' : (authMode === 'login' ? 'התחבר' : 'הרשם')}
+                            {authLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {authLoading ? 'מתחבר...' : (authMode === 'login' ? 'התחבר' : 'הרשם')}
                         </button>
 
                         <div className="text-center pt-2">
