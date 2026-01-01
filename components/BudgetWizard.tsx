@@ -1,15 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../services/api';
 import { BusinessProfile, Product, FixedExpenseCategory } from '../types';
-<<<<<<< HEAD
-import { 
-  ArrowRight, ArrowLeft, Plus, Trash2, Save, Store, Package, 
-  Building2, Landmark, Check, Calculator, PieChart, Wallet, FileText
-=======
 import {
     ArrowRight, ArrowLeft, Plus, Trash2, Save, Store, Package,
     Building2, Landmark, Check, Calculator, PieChart, Wallet
->>>>>>> c6ce3506c96b23a5304f9c0c13957c319c9d3cd1
 } from 'lucide-react';
 
 interface WizardProps {
@@ -36,7 +30,7 @@ export const BudgetWizard: React.FC<WizardProps> = ({ userId, onComplete }) => {
     const [newProduct, setNewProduct] = useState<Partial<Product>>({ name: '', price: 0, avg_monthly_qty: 0, unit_cost: 0 });
     const [fixedExpenses, setFixedExpenses] = useState<FixedExpenseCategory[]>([]);
 
-    // Statistics for headers
+    // Statistics for headers.
     const totalRevenue = useMemo(() => products.reduce((sum, p) => sum + (p.price * p.avg_monthly_qty), 0), [products]);
     const totalCOGS = useMemo(() => fixedExpenses.filter(e => e.group === 'cogs').reduce((sum, e) => sum + (e.monthly_amount || 0), 0), [fixedExpenses]);
     const totalGA = useMemo(() => fixedExpenses.filter(e => e.group === 'ga').reduce((sum, e) => sum + (e.monthly_amount || 0), 0), [fixedExpenses]);
@@ -156,79 +150,8 @@ export const BudgetWizard: React.FC<WizardProps> = ({ userId, onComplete }) => {
                                     <p className={`text-xs font-bold ${isActive ? 'text-indigo-700' : 'text-gray-500'}`}>{step.title}</p>
                                 </div>
                             </div>
-<<<<<<< HEAD
-                            <div className="hidden md:block text-center">
-                                <p className={`text-xs font-bold ${isActive ? 'text-indigo-700' : 'text-gray-500'}`}>{step.title}</p>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    </div>
-  );
-
-  const renderStep1 = () => (
-    <div className="max-w-2xl mx-auto animate-fadeIn">
-        {profile.business_name && (
-            <div className="mb-6 bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3 text-emerald-800">
-                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                        <Check className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="font-bold">מצאנו פרטים קיימים!</p>
-                        <p className="text-sm">נראה שכבר התחלת למלא את התקציב.</p>
-                    </div>
-                </div>
-                <button 
-                    onClick={onComplete}
-                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-700 transition"
-                >
-                    <FileText className="w-4 h-4" />
-                    עבור לדוח המסכם
-                </button>
-            </div>
-        )}
-
-        <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 mb-8 flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
-                <Store className="w-6 h-6" />
-            </div>
-            <div>
-                <h3 className="text-lg font-bold text-indigo-900">בוא נתחיל מהבסיס</h3>
-                <p className="text-indigo-700/80 text-sm mt-1">
-                    פרטים אלו יופיעו בראש הדוחות שלך ויעזרו לנו להתאים את המערכת לצרכים שלך.
-                </p>
-            </div>
-        </div>
-
-        <div className="grid gap-6">
-            <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">שם העסק</label>
-                <input
-                    type="text"
-                    className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm"
-                    value={profile.business_name}
-                    onChange={e => setProfile({...profile, business_name: e.target.value})}
-                    placeholder="לדוגמה: קפה בוקר טוב"
-                    autoFocus
-                />
-            </div>
-            <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">טלפון</label>
-                    <input
-                        type="tel"
-                        className="w-full p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-sm"
-                        value={profile.phone}
-                        onChange={e => setProfile({...profile, phone: e.target.value})}
-                        placeholder="050-0000000"
-                    />
-=======
                         );
                     })}
->>>>>>> c6ce3506c96b23a5304f9c0c13957c319c9d3cd1
                 </div>
             </div>
         </div>
