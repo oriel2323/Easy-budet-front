@@ -5,7 +5,7 @@ interface LandingPageProps {
   onLoginClick: () => void;
   onRegisterClick: () => void;
 }
-//
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterClick }) => {
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans selection:bg-indigo-500 selection:text-white">
@@ -22,7 +22,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
           <a href="#" className="hover:text-white transition-colors">פיצ'רים</a>
           <a href="#" className="hover:text-white transition-colors">מחירים</a>
         </div>
-        <button
+        <button 
           onClick={onLoginClick}
           className="px-5 py-2 rounded-full border border-white/20 hover:bg-white/10 transition text-sm font-medium backdrop-blur-sm"
         >
@@ -37,21 +37,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <Sparkles className="w-4 h-4" />
             <span>בינה מלאכותית לניהול הכסף שלך</span>
           </div>
-
+          
           <h1 className="text-5xl md:text-7xl font-black leading-[1.1]">
             תפסיק לנחש,<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
               תתחיל לשלוט.
             </span>
           </h1>
-
+          
           <p className="text-xl text-gray-400 max-w-2xl mx-auto md:mx-0 leading-relaxed font-light">
-            הפלטפורמה החכמה שמנתחת את ההוצאות שלך, חוזה את העתיד הכלכלי שלך
+            הפלטפורמה החכמה שמנתחת את ההוצאות שלך, חוזה את העתיד הכלכלי שלך 
             ועוזרת לך לחסוך בצורה אוטומטית - והכל במקום אחד.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start pt-4">
-            <button
+            <button 
               onClick={onRegisterClick}
               className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-500/30 transition-all transform hover:scale-105 flex items-center justify-center gap-3"
             >
@@ -67,7 +67,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
         {/* Visual Element */}
         <div className="flex-1 relative w-full max-w-lg mt-10 md:mt-0">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-indigo-600/20 blur-[100px] -z-10 rounded-full"></div>
-
+          
           <div className="relative z-10 bg-gray-900/40 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-2xl transform rotate-[-2deg] hover:rotate-0 transition duration-500">
             {/* Fake Dashboard Card */}
             <div className="flex justify-between items-center mb-6">
@@ -111,7 +111,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
           </div>
         </div>
       </div>
-
+      
       {/* Features Grid (Quick Glimpse) */}
       <div className="max-w-7xl mx-auto px-6 py-20 border-t border-white/5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-right">
