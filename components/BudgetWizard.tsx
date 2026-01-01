@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { BusinessProfile, Product, FixedExpenseCategory } from '../types';
 import { 
   ArrowRight, ArrowLeft, Plus, Trash2, Save, Store, Package, 
-  Building2, Landmark, Check, Calculator, PieChart, Wallet
+  Building2, Landmark, Check, Calculator, PieChart, Wallet, FileText
 } from 'lucide-react';
 
 interface WizardProps {
@@ -159,6 +159,27 @@ export const BudgetWizard: React.FC<WizardProps> = ({ userId, onComplete }) => {
 
   const renderStep1 = () => (
     <div className="max-w-2xl mx-auto animate-fadeIn">
+        {profile.business_name && (
+            <div className="mb-6 bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3 text-emerald-800">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <Check className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <p className="font-bold">מצאנו פרטים קיימים!</p>
+                        <p className="text-sm">נראה שכבר התחלת למלא את התקציב.</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={onComplete}
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-emerald-700 transition"
+                >
+                    <FileText className="w-4 h-4" />
+                    עבור לדוח המסכם
+                </button>
+            </div>
+        )}
+
         <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 mb-8 flex items-start gap-4">
             <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
                 <Store className="w-6 h-6" />

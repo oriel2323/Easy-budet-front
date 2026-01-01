@@ -25,14 +25,29 @@ function App() {
 
   // Helper to decide where to send the user
   const routeUser = async (id: number) => {
+    if (!id || isNaN(id)) {
+        setView('landing');
+        return;
+    }
+
     setIsCheckingRoute(true);
     try {
-        // Try to fetch profile. If successful, they have started the process -> Go to Report
-        await api.businessProfile.get(id);
-        setView('report');
+        // Try to fetch profile. If successful and has name, they have started -> Go to Report
+        const profile = await api.businessProfile.get(id);
+        if (profile && profile.business_name) {
+            setView('report');
+        } else {
+            setView('wizard');
+        }
     } catch (e) {
-        // If error (usually 404), they haven't set up profile -> Go to Wizard
-        setView('wizard');
+        // Fallback: If profile fetch fails, try PnL just in case (e.g. strict backend logic)
+        try {
+            await api.reports.getPnL(id);
+            setView('report');
+        } catch {
+            // If everything fails, go to Wizard (New user flow)
+            setView('wizard');
+        }
     } finally {
         setIsCheckingRoute(false);
     }
@@ -43,8 +58,12 @@ function App() {
     const storedUser = localStorage.getItem('budget_user_id');
     if (storedUser) {
         const id = parseInt(storedUser);
-        setUserId(id);
-        routeUser(id);
+        if (!isNaN(id)) {
+            setUserId(id);
+            routeUser(id);
+        } else {
+            localStorage.removeItem('budget_user_id');
+        }
     }
   }, []);
 
