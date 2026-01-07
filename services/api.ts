@@ -7,44 +7,53 @@ import {
   PnLReport 
 } from '../types';
 
-// Hardcoded backend URL to prevent relative path issues
-// Note: Ensure this URL is reachable and has no trailing slash here
-const BACKEND_URL = "https://easybudgetbackend-production.up.railway.app";
+// Explicitly define the backend URL
+const API_BASE_URL = "https://easybudgetbackend-production.up.railway.app";
 
 // Helper for requests
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${BACKEND_URL}${path}`;
-  
-  // Debug log with timestamp to verify latest code is running
-  console.log(`[API v2] ${new Date().toISOString()} - ${options?.method || 'GET'} ${url}`);
-
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  
-  if (!res.ok) {
-    // Try to parse JSON error, fallback to status text if it's HTML (like Vercel 404)
-    let errorMessage = 'API Error';
-    try {
-        const errorData = await res.json();
-        errorMessage = errorData.detail || errorMessage;
-    } catch (e) {
-        // If response is not JSON (e.g., 404 HTML page), use status text
-        errorMessage = `HTTP Error ${res.status}: ${res.statusText}`;
-        console.error("Non-JSON Error Response:", e);
-    }
-    throw new Error(errorMessage);
+  // Defensive coding: Ensure we never make a relative request
+  let url = `${API_BASE_URL}${path}`;
+  if (!url.startsWith('http')) {
+      console.error('CRITICAL: API URL is relative, forcing absolute URL.');
+      url = `https://easybudgetbackend-production.up.railway.app${path}`;
   }
-  return res.json();
+  
+  // Debug log to verify v3 is running
+  console.log(`[API v3 DEBUG] ${options?.method || 'GET'} ${url}`);
+
+  try {
+      const res = await fetch(url, {
+        ...options,
+        mode: 'cors', // Explicitly request CORS
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+      
+      if (!res.ok) {
+        let errorMessage = 'API Error';
+        try {
+            const errorData = await res.json();
+            errorMessage = errorData.detail || errorMessage;
+        } catch (e) {
+            // If we get here, it means the server returned a non-JSON error (like a raw 404 or 500 html page)
+            errorMessage = `HTTP Error ${res.status}: ${res.statusText}`;
+            console.error("Non-JSON Error Response body:", await res.text().catch(() => 'Could not read text'));
+        }
+        throw new Error(errorMessage);
+      }
+      return res.json();
+  } catch (err) {
+      // Network errors (like CORS failure or DNS issues) land here
+      console.error(`[API Connection Failed]`, err);
+      throw err;
+  }
 }
 
 export const api = {
   auth: {
-    // Added trailing slashes to paths which helps with some strict backend routers (FastAPI/Flask)
     login: (email: string, password: string) => 
       request<AuthResponse>('/auth/login', {
         method: 'POST',
