@@ -7,11 +7,17 @@ import {
   PnLReport 
 } from '../types';
 
-const API_BASE = "https://easybudgetbackend-production.up.railway.app";
+// Hardcoded backend URL to prevent relative path issues
+const BACKEND_URL = "https://easybudgetbackend-production.up.railway.app";
 
 // Helper for requests
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = `${BACKEND_URL}${path}`;
+  
+  // Debug log to verify requests are going to Railway, not Vercel
+  console.log(`[API Request] ${options?.method || 'GET'} ${url}`);
+
+  const res = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -20,8 +26,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'API Error');
+    // Try to parse JSON error, fallback to status text if it's HTML (like Vercel 404)
+    let errorMessage = 'API Error';
+    try {
+        const errorData = await res.json();
+        errorMessage = errorData.detail || errorMessage;
+    } catch (e) {
+        // If response is not JSON (e.g., 404 HTML page), use status text
+        errorMessage = `HTTP Error ${res.status}: ${res.statusText}`;
+    }
+    throw new Error(errorMessage);
   }
   return res.json();
 }
