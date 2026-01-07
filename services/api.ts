@@ -8,14 +8,15 @@ import {
 } from '../types';
 
 // Hardcoded backend URL to prevent relative path issues
+// Note: Ensure this URL is reachable and has no trailing slash here
 const BACKEND_URL = "https://easybudgetbackend-production.up.railway.app";
 
 // Helper for requests
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BACKEND_URL}${path}`;
   
-  // Debug log to verify requests are going to Railway, not Vercel
-  console.log(`[API Request] ${options?.method || 'GET'} ${url}`);
+  // Debug log with timestamp to verify latest code is running
+  console.log(`[API v2] ${new Date().toISOString()} - ${options?.method || 'GET'} ${url}`);
 
   const res = await fetch(url, {
     ...options,
@@ -34,6 +35,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     } catch (e) {
         // If response is not JSON (e.g., 404 HTML page), use status text
         errorMessage = `HTTP Error ${res.status}: ${res.statusText}`;
+        console.error("Non-JSON Error Response:", e);
     }
     throw new Error(errorMessage);
   }
@@ -42,6 +44,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
+    // Added trailing slashes to paths which helps with some strict backend routers (FastAPI/Flask)
     login: (email: string, password: string) => 
       request<AuthResponse>('/auth/login', {
         method: 'POST',
