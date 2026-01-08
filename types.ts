@@ -69,3 +69,19 @@ export interface AuthResponse {
   user_id?: number;
   message?: string;
 }
+
+// AI Types
+export interface AIRecommendation {
+  title: string;
+  content: string;
+}
+
+export interface AIAnalysisResult {
+  status: string;
+  summary: string;
+  recommendations: AIRecommendation[];
+}
+
+export interface AIResponseRaw {
+  recommendations: string; // The raw JSON string returned from backend
+}

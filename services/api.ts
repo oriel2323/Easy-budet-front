@@ -4,7 +4,8 @@ import {
   Product, 
   FixedExpenseCategory, 
   FixedExpenseUpsert,
-  PnLReport 
+  PnLReport,
+  AIResponseRaw
 } from '../types';
 
 // Explicitly define the backend URL
@@ -95,5 +96,11 @@ export const api = {
   },
   reports: {
     getPnL: (userId: number) => request<PnLReport>(`/reports/pnl/${userId}`),
+    sendToEmail: (userId: number) => request<{success: boolean}>(`/reports/pnl/${userId}/email`, {
+        method: 'POST'
+    }),
+  },
+  ai: {
+    getInsights: (userId: number) => request<AIResponseRaw>(`/ai/recommendations/${userId}`),
   }
 };
