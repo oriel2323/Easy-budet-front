@@ -4,26 +4,53 @@ import {
   Product, 
   FixedExpenseCategory, 
   FixedExpenseUpsert,
-  PnLReport 
+  PnLReport,
+  AIResponseRaw
 } from '../types';
 
-const API_BASE = "https://easybudgetbackend-production.up.railway.app";
+// Explicitly define the backend URL
+const API_BASE_URL = "https://easybudgetbackend-production.up.railway.app";
 
 // Helper for requests
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'API Error');
+  // Defensive coding: Ensure we never make a relative request
+  let url = `${API_BASE_URL}${path}`;
+  if (!url.startsWith('http')) {
+      console.error('CRITICAL: API URL is relative, forcing absolute URL.');
+      url = `https://easybudgetbackend-production.up.railway.app${path}`;
   }
-  return res.json();
+  
+  // Debug log to verify v3 is running
+  console.log(`[API v3 DEBUG] ${options?.method || 'GET'} ${url}`);
+
+  try {
+      const res = await fetch(url, {
+        ...options,
+        mode: 'cors', // Explicitly request CORS
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+      
+      if (!res.ok) {
+        let errorMessage = 'API Error';
+        try {
+            const errorData = await res.json();
+            errorMessage = errorData.detail || errorMessage;
+        } catch (e) {
+            // If we get here, it means the server returned a non-JSON error (like a raw 404 or 500 html page)
+            errorMessage = `HTTP Error ${res.status}: ${res.statusText}`;
+            console.error("Non-JSON Error Response body:", await res.text().catch(() => 'Could not read text'));
+        }
+        throw new Error(errorMessage);
+      }
+      return res.json();
+  } catch (err) {
+      // Network errors (like CORS failure or DNS issues) land here
+      console.error(`[API Connection Failed]`, err);
+      throw err;
+  }
 }
 
 export const api = {
@@ -69,5 +96,11 @@ export const api = {
   },
   reports: {
     getPnL: (userId: number) => request<PnLReport>(`/reports/pnl/${userId}`),
+    sendToEmail: (userId: number) => request<{success: boolean}>(`/reports/pnl/${userId}/email`, {
+        method: 'POST'
+    }),
+  },
+  ai: {
+    getInsights: (userId: number) => request<AIResponseRaw>(`/ai/recommendations/${userId}`),
   }
 };
