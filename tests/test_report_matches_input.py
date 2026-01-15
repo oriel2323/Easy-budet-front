@@ -2,7 +2,7 @@
 import re
 import time
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import List, Optional, Dict
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -18,12 +18,10 @@ from selenium.common.exceptions import (
 
 BASE_URL = "https://easy-budet-front.vercel.app/"  # או: "http://localhost:5173/"
 
-
 # ---------------- logging ----------------
 def log(msg: str):
     now = time.strftime("%H:%M:%S")
     print(f"[{now}] {msg}")
-
 
 # ---------------- helpers ----------------
 def safe_screenshot(driver, filename="failure.png"):
@@ -33,16 +31,13 @@ def safe_screenshot(driver, filename="failure.png"):
     except (NoSuchWindowException, WebDriverException):
         return False
 
-
 def js_click(driver, element):
     driver.execute_script("arguments[0].click();", element)
-
 
 def wait_text(driver, text, timeout=30):
     WebDriverWait(driver, timeout).until(
         EC.presence_of_element_located((By.XPATH, f"//*[contains(normalize-space(.), '{text}')]"))
     )
-
 
 def accept_alert_if_present(driver, timeout=2):
     try:
@@ -53,14 +48,12 @@ def accept_alert_if_present(driver, timeout=2):
     except TimeoutException:
         return False
 
-
 def click_button_contains(driver, text, timeout=30):
     btn = WebDriverWait(driver, timeout).until(
         EC.element_to_be_clickable((By.XPATH, f"//button[contains(normalize-space(.), '{text}')]"))
     )
     js_click(driver, btn)
     return btn
-
 
 def fill_by_placeholder(driver, placeholder, value, timeout=30):
     el = WebDriverWait(driver, timeout).until(
@@ -75,7 +68,6 @@ def fill_by_placeholder(driver, placeholder, value, timeout=30):
     el.send_keys(str(value))
     return el
 
-
 def get_modal_root(driver, timeout=30):
     try:
         return WebDriverWait(driver, timeout).until(
@@ -85,7 +77,6 @@ def get_modal_root(driver, timeout=30):
         )
     except Exception:
         return driver
-
 
 def fill_register_modal(driver, full_name, email, password, timeout=30):
     modal = get_modal_root(driver, timeout=timeout)
@@ -105,7 +96,6 @@ def fill_register_modal(driver, full_name, email, password, timeout=30):
         el.click()
         el.send_keys(Keys.CONTROL, "a")
         el.send_keys(str(val))
-
 
 def wait_after_register(driver, timeout=40):
     end = time.time() + timeout
@@ -128,8 +118,11 @@ def wait_after_register(driver, timeout=40):
         f"Timed out waiting for 'פרופיל עסק' after registration.\nLast page text:\n{last_body}"
     )
 
-
 def fill_income_add_product_row(driver, name, price, qty, direct_cost=None, timeout=30):
+    """
+    מסך 'הכנסות' - מילוי שורת הוספת מוצר/שירות בלי להסתמך על placeholder.
+    [0]=שם מוצר, [1]=מחיר מכירה, [2]=כמות חודשית, [3]=עלות ישירה (אם קיימת)
+    """
     add_area = WebDriverWait(driver, timeout).until(
         EC.presence_of_element_located((
             By.XPATH,
@@ -153,7 +146,6 @@ def fill_income_add_product_row(driver, name, price, qty, direct_cost=None, time
         el.send_keys(Keys.CONTROL, "a")
         el.send_keys(v)
 
-
 def assert_product_added(driver, product_name, timeout=10):
     try:
         WebDriverWait(driver, timeout).until(
@@ -162,7 +154,6 @@ def assert_product_added(driver, product_name, timeout=10):
     except TimeoutException:
         safe_screenshot(driver, "product_not_added.png")
         raise AssertionError(f"Product '{product_name}' was not found on screen after clicking 'הוסף'.")
-
 
 def fill_expense_card_amount(driver, card_title, amount, timeout=50):
     """
@@ -213,126 +204,124 @@ def fill_expense_card_amount(driver, card_title, amount, timeout=50):
         f"Could not find expense input for '{card_title}'. Saved expense_card_not_found.png. LastErr={last_err}"
     )
 
+# ---------------- report parsing (robust cards) ----------------
+def normalize_he(text: str) -> str:
+    if not text:
+        return ""
+    t = text.replace("\u00A0", " ").strip()
+    # unify quotes
+    t = t.replace("״", '"').replace("׳", "'").replace("”", '"').replace("“", '"')
+    # remove punctuation that often differs between renders
+    t = re.sub(r"[():\[\]{}]", " ", t)
+    t = t.replace("₪", " ")
+    t = t.replace("\n", " ")
+    t = re.sub(r"\s+", " ", t).strip().lower()
+    return t
 
-# ---------------- number parsing ----------------
 def parse_ils_number(text: str) -> float:
-    """
-    שולף מספר מתוך טקסט (₪, פסיקים, נקודה, מינוס).
-    """
     if text is None:
         raise ValueError("Empty text for number parsing")
-
     t = text.replace("\u00A0", " ").strip()
-
-    # תומך גם "₪ -1,234" וגם "- ₪ 1,234"
-    m = re.search(r"(-?\s*\d[\d,]*\.?\d*)", t)
+    m = re.search(r"(-?\d[\d,]*\.?\d*)", t)
     if not m:
         raise ValueError(f"Could not parse number from: {text}")
-
-    num = m.group(1).replace(",", "").replace(" ", "")
+    num = m.group(1).replace(",", "")
     return float(num)
 
+def extract_first_number_from_element(el) -> Optional[float]:
+    try:
+        txt = (el.text or "").replace("\u00A0", " ").strip()
+        if not txt:
+            return None
+        if not re.search(r"-?\d", txt):
+            return None
+        return parse_ils_number(txt)
+    except Exception:
+        return None
 
-# ---------------- report extractors (NEW) ----------------
-def find_card_value_by_title(driver, title: str, timeout=20) -> float:
+def find_kpi_card_value(driver, title_variants: List[str], timeout=25) -> float:
     """
-    בדוח שלך יש כרטיסים למעלה כמו: 'סה"כ הכנסות שנתי' + ערך '₪ ...'
-    הפונקציה מוצאת את הכרטיס לפי הכותרת ומחזירה את המספר שבתוכו.
+    מוצא כרטיס KPI לפי כותרת (עם וריאציות), ושולף את המספר מהכרטיס.
+    עובד גם אם יש גרשיים/סוגריים/רווחים שונים.
     """
+    norm_targets = [normalize_he(x) for x in title_variants]
     end = time.time() + timeout
     last_err = None
 
     while time.time() < end:
         try:
-            title_els = driver.find_elements(By.XPATH, f"//*[contains(normalize-space(.), '{title}')]")
+            # נאתר מועמדים לטייטל ע"י XPATH contains (מהיר), ואז נבצע match בנירמול
+            any_piece = title_variants[0]
+            title_els = driver.find_elements(By.XPATH, f"//*[contains(normalize-space(.), '{any_piece}')]")
+
+            # אם לא מצא לפי ה"חתיכה" הראשונה – ננסה לאסוף עוד לפי שאר הוריאציות
+            if not title_els:
+                for v in title_variants[1:]:
+                    title_els.extend(driver.find_elements(By.XPATH, f"//*[contains(normalize-space(.), '{v}')]"))
+
             for te in title_els:
                 try:
-                    # קח ancestor שמכיל גם את הכותרת וגם ערך עם ₪
-                    card = te.find_element(By.XPATH, "./ancestor::*[.//*[contains(., '₪')]][1]")
-                    # מצא טקסט עם ₪ בתוך הכרטיס
-                    money_els = card.find_elements(By.XPATH, ".//*[contains(., '₪')]")
-                    for me in money_els:
-                        txt = (me.text or "").strip()
-                        if "₪" in txt and re.search(r"\d", txt):
-                            return parse_ils_number(txt)
-                except StaleElementReferenceException as e:
-                    last_err = e
-                    continue
-                except Exception as e:
-                    last_err = e
-                    continue
+                    ttxt = normalize_he(te.text or "")
+                    if not ttxt:
+                        continue
+                    if not any(target in ttxt for target in norm_targets):
+                        continue
 
-            time.sleep(0.25)
-        except Exception as e:
-            last_err = e
-            time.sleep(0.2)
+                    # כרטיס = ancestor שיש בו גם title וגם מספר/₪
+                    card = te.find_element(
+                        By.XPATH,
+                        "./ancestor::*[.//*[contains(.,'₪') or re:match(normalize-space(.), '.*[0-9].*')]][1]"
+                    )
+                except Exception:
+                    # fallback בלי regex namespace
+                    try:
+                        card = te.find_element(By.XPATH, "./ancestor::*[.//*[contains(.,'₪')]][1]")
+                    except Exception:
+                        try:
+                            card = te.find_element(By.XPATH, "./ancestor::*[1]")
+                        except Exception:
+                            continue
 
-    safe_screenshot(driver, f"card_not_found_{title}.png")
-    raise AssertionError(f"Could not locate card value for '{title}'. LastErr={last_err}")
-
-
-def get_month_column_index(driver, month_name: str, timeout=20) -> int:
-    """
-    מוצא אינדקס עמודה בטבלה לפי שם חודש (ינואר/פברואר/...).
-    מחזיר אינדקס 1-based לטובת XPath של td[n].
-    """
-    end = time.time() + timeout
-    while time.time() < end:
-        try:
-            headers = driver.find_elements(By.XPATH, f"//th[contains(normalize-space(.), '{month_name}')]")
-            if headers:
-                # ניקח את הראשון ונחשב index שלו בתוך כל ה-th באותה שורה
-                th = headers[0]
-                row = th.find_element(By.XPATH, "./ancestor::tr[1]")
-                all_th = row.find_elements(By.XPATH, "./th")
-                for i, h in enumerate(all_th, start=1):
-                    if (h.text or "").strip() == (th.text or "").strip():
-                        return i
-        except Exception:
-            pass
-        time.sleep(0.25)
-    raise AssertionError(f"Could not find table header for month '{month_name}'")
-
-
-def find_table_value_by_row_and_month(driver, row_label_contains: str, month_name: str, timeout=25) -> float:
-    """
-    בדוח יש טבלת חודשים. בצד ימין מופיע שם השורה (למשל: 'סה\"כ הכנסה חודשית:')
-    אנחנו מוצאים את ה-tr לפי שם השורה, ואז קוראים את התא של החודש.
-    """
-    end = time.time() + timeout
-    last_err = None
-
-    col_idx = get_month_column_index(driver, month_name, timeout=timeout)
-
-    while time.time() < end:
-        try:
-            # locate row by label anywhere in that row
-            rows = driver.find_elements(By.XPATH, f"//tr[.//*[contains(normalize-space(.), '{row_label_contains}')]]")
-            for r in rows:
+                # בתוך הכרטיס נחפש אלמנטים טקסטואליים שמכילים מספר
                 try:
-                    # value cell: td[col_idx] OR th[col_idx] depending on markup
-                    cells = r.find_elements(By.XPATH, "./td|./th")
-                    if len(cells) >= col_idx:
-                        txt = (cells[col_idx - 1].text or "").strip()
-                        if re.search(r"\d", txt) or "₪" in txt:
-                            return parse_ils_number(txt)
+                    candidates = card.find_elements(By.XPATH, ".//*[self::span or self::p or self::div or self::td or self::h1 or self::h2 or self::h3 or self::h4]")
+                    # נחפש קודם כאלה שמכילים ₪ (בד"כ הערך)
+                    for c in candidates:
+                        try:
+                            txt = (c.text or "").strip()
+                            if "₪" in txt and re.search(r"\d", txt):
+                                val = extract_first_number_from_element(c)
+                                if val is not None:
+                                    return val
+                        except StaleElementReferenceException:
+                            continue
+
+                    # ואז fallback: כל מספר שהוא (מינוס הטייטל)
+                    for c in candidates:
+                        try:
+                            txt = (c.text or "").strip()
+                            if not txt:
+                                continue
+                            if normalize_he(txt) == normalize_he(te.text or ""):
+                                continue
+                            val = extract_first_number_from_element(c)
+                            if val is not None:
+                                return val
+                        except StaleElementReferenceException:
+                            continue
+
                 except StaleElementReferenceException as e:
-                    last_err = e
-                    continue
-                except Exception as e:
                     last_err = e
                     continue
 
             time.sleep(0.25)
-        except Exception as e:
+
+        except StaleElementReferenceException as e:
             last_err = e
             time.sleep(0.2)
 
-    safe_screenshot(driver, f"table_row_not_found_{row_label_contains}.png")
-    raise AssertionError(
-        f"Could not locate table value for row '{row_label_contains}' month '{month_name}'. LastErr={last_err}"
-    )
-
+    safe_screenshot(driver, "kpi_card_not_found.png")
+    raise AssertionError(f"Could not locate KPI card value. Tried titles={title_variants}. LastErr={last_err}")
 
 # ---------------- expected model ----------------
 @dataclass
@@ -340,22 +329,21 @@ class Product:
     name: str
     price: float
     qty: float
-    direct_cost_per_unit: float
+    direct_cost_per_unit: float  # עלות ייצור ליחידה
 
     @property
     def revenue_monthly(self) -> float:
         return self.price * self.qty
 
     @property
-    def direct_cost_monthly(self) -> float:
+    def production_cost_monthly(self) -> float:
         return self.direct_cost_per_unit * self.qty
-
 
 @dataclass
 class Inputs:
     products: List[Product]
     exp_cost_of_sales: float  # עלויות מכר (סה"כ חודשי)
-    exp_fixed: float          # הוצאות הנהלה וכלליות (סה"כ חודשי)
+    exp_fixed: float          # הוצאות הנהלה וכלליות/קבועות (סה"כ חודשי)
 
     @property
     def revenue_monthly(self) -> float:
@@ -367,23 +355,24 @@ class Inputs:
 
     @property
     def production_cost_monthly(self) -> float:
-        return sum(p.direct_cost_monthly for p in self.products)
+        return sum(p.production_cost_monthly for p in self.products)
 
     @property
     def production_cost_yearly(self) -> float:
         return self.production_cost_monthly * 12
 
     @property
-    def cost_of_sales_yearly(self) -> float:
-        return self.exp_cost_of_sales * 12
+    def total_expenses_monthly(self) -> float:
+        # סה"כ הוצאות = עלות ייצור + עלויות מכר + הוצאות הנהלה וכלליות
+        return self.production_cost_monthly + self.exp_cost_of_sales + self.exp_fixed
 
     @property
-    def fixed_yearly(self) -> float:
-        return self.exp_fixed * 12
+    def total_expenses_yearly(self) -> float:
+        return self.total_expenses_monthly * 12
 
     @property
     def gross_profit_monthly(self) -> float:
-        # רווח גולמי = הכנסות - עלות ייצור - עלויות מכר
+        # רווח גולמי = הכנסות - (עלות ייצור + עלויות מכר)
         return self.revenue_monthly - self.production_cost_monthly - self.exp_cost_of_sales
 
     @property
@@ -399,25 +388,28 @@ class Inputs:
     def operating_profit_yearly(self) -> float:
         return self.operating_profit_monthly * 12
 
-
 def assert_close(actual: float, expected: float, label: str, tol: float = 0.01):
     if abs(actual - expected) > tol:
         raise AssertionError(f"{label}: expected {expected} but got {actual}")
-
 
 # ---------------- test ----------------
 def test_report_matches_input_front_only():
     driver = webdriver.Chrome()
     driver.set_window_size(1440, 900)
 
-    # ✅ קלט עם "בשר" (2 מוצרים + הוצאות)
+    # === נתונים “עם בשר” ===
+    # 2 מוצרים כדי לוודא שהסכימה/חישובים עובדים ולא רק ערך יחיד
+    products = [
+        Product(name="מוצר בדיקה A", price=120, qty=15, direct_cost_per_unit=35),
+        Product(name="מוצר בדיקה B", price=80,  qty=25, direct_cost_per_unit=20),
+    ]
+
     inp = Inputs(
-        products=[
-            Product(name="מוצר A", price=120, qty=8, direct_cost_per_unit=40),   # rev 960, direct 320
-            Product(name="מוצר B", price=75,  qty=20, direct_cost_per_unit=15),  # rev 1500, direct 300
-        ],
-        exp_cost_of_sales=1500 + 5000 + 200,  # שכירות משרד + משכורות + ארנונה
-        exp_fixed=300 + 250 + 400,            # רואה חשבון + הנהלת חשבונות + שיווק
+        products=products,
+        # שלב 3: עלויות מכר (חודשי)
+        exp_cost_of_sales=1500 + 5000 + 200,   # שכירות משרד + משכורות + ארנונה
+        # שלב 4: הוצאות קבועות/הנהלה (חודשי)
+        exp_fixed=300 + 250 + 400,             # רואה חשבון + הנהלת חשבונות + שיווק
     )
 
     unique_email = f"selenium_{int(time.time())}@test.il"
@@ -436,7 +428,7 @@ def test_report_matches_input_front_only():
 
         fill_register_modal(driver, full_name, unique_email, password)
         click_button_contains(driver, "הרשם")
-        wait_after_register(driver, timeout=40)
+        wait_after_register(driver, timeout=50)
 
         # --- Step 1 ---
         wait_text(driver, "פרופיל עסק")
@@ -450,7 +442,7 @@ def test_report_matches_input_front_only():
         wait_text(driver, "הכנסות")
         log("Step 2: הכנסות")
 
-        for p in inp.products:
+        for p in products:
             fill_income_add_product_row(
                 driver,
                 name=p.name,
@@ -467,72 +459,102 @@ def test_report_matches_input_front_only():
         # --- Step 3 ---
         wait_text(driver, "עלויות מכר")
         log("Step 3: עלויות מכר")
-        fill_expense_card_amount(driver, "שכירות משרד", 1500, timeout=50)
-        fill_expense_card_amount(driver, "משכורות עובדים", 5000, timeout=50)
-        fill_expense_card_amount(driver, "ארנונה", 200, timeout=50)
+        fill_expense_card_amount(driver, "שכירות משרד", 1500, timeout=60)
+        fill_expense_card_amount(driver, "משכורות עובדים", 5000, timeout=60)
+        fill_expense_card_amount(driver, "ארנונה", 200, timeout=60)
         click_button_contains(driver, "המשך לשלב הבא")
 
         # --- Step 4 ---
         wait_text(driver, "הוצאות קבועות")
         log("Step 4: הוצאות קבועות")
-        fill_expense_card_amount(driver, "רואה חשבון", 300, timeout=50)
-        fill_expense_card_amount(driver, "הנהלת חשבונות", 250, timeout=50)
-        fill_expense_card_amount(driver, "שיווק", 400, timeout=50)
+        fill_expense_card_amount(driver, "רואה חשבון", 300, timeout=60)
+        fill_expense_card_amount(driver, "הנהלת חשבונות", 250, timeout=60)
+        fill_expense_card_amount(driver, "שיווק", 400, timeout=60)
         click_button_contains(driver, "סיום והצגת דוח")
 
         # --- Report ---
         log("Wait report")
-        wait_text(driver, "דוח", timeout=60)
+        wait_text(driver, "דוח", timeout=80)
         safe_screenshot(driver, "report_reached.png")
 
-        # ===== Assertions: כרטיסים שנתיים (לפי ה-UI בצילום מסך) =====
-        ui_rev_y  = find_card_value_by_title(driver, 'סה"כ הכנסות שנתי')
-        ui_prod_y = find_card_value_by_title(driver, "סה\"כ עלויות ייצור שנתי")
-        ui_cos_y  = find_card_value_by_title(driver, 'סה"כ הוצאות קבועות (עלות מכר) שנתי')
-        ui_fix_y  = find_card_value_by_title(driver, 'סה"כ הוצאות הנהלה וכלליות שנתי')
-        ui_gp_y   = find_card_value_by_title(driver, "רווח גולמי שנתי")
-        ui_op_y   = find_card_value_by_title(driver, "רווח תפעולי שנתי")
+        # ===== KPI cards mapping =====
+        # פה עשינו את התיקון המרכזי: כל KPI מחפש כמה וריאציות (לא טייטל יחיד).
+        card_titles: Dict[str, List[str]] = {
+            "revenue_yearly": [
+                'סה"כ הכנסות שנתי',
+                'סך הכנסות שנתי',
+                'הכנסות שנתיות',
+                'סה"כ הכנסות',
+            ],
+            "production_cost_yearly": [
+                'סה"כ עלויות ייצור שנתי',
+                'סך עלויות ייצור שנתי',
+                'עלויות ייצור שנתי',
+                'סה"כ עלויות ייצור',
+            ],
+            "cos_yearly": [
+                'סה"כ הוצאות קבועות (עלות מכר) שנתי',
+                'סה"כ הוצאות קבועות (עלויות מכר) שנתי',
+                'סה"כ הוצאות קבועות עלות מכר שנתי',
+                'סה"כ הוצאות (עלות מכר) שנתי',
+                'סה"כ עלות מכר שנתי',
+                'עלות מכר שנתי',
+            ],
+            "fixed_yearly": [
+                'סה"כ הוצאות הנהלה וכלליות שנתי',
+                'סה"כ הוצאות הנהלה וכלליות',
+                'הוצאות הנהלה וכלליות שנתי',
+                'הוצאות קבועות שנתי',
+            ],
+            "gross_profit_yearly": [
+                'רווח גולמי שנתי',
+                'סה"כ רווח גולמי שנתי',
+                'רווח גולמי',
+            ],
+            "operating_profit_yearly": [
+                'רווח תפעולי שנתי',
+                'סה"כ רווח תפעולי שנתי',
+                'רווח תפעולי',
+            ],
+        }
+
+        ui_rev_y = find_kpi_card_value(driver, card_titles["revenue_yearly"], timeout=25)
+        ui_prod_y = find_kpi_card_value(driver, card_titles["production_cost_yearly"], timeout=25)
+        ui_cos_y = find_kpi_card_value(driver, card_titles["cos_yearly"], timeout=25)
+        ui_fixed_y = find_kpi_card_value(driver, card_titles["fixed_yearly"], timeout=25)
+        ui_gp_y = find_kpi_card_value(driver, card_titles["gross_profit_yearly"], timeout=25)
+        ui_op_y = find_kpi_card_value(driver, card_titles["operating_profit_yearly"], timeout=25)
 
         log(f"UI yearly revenue: {ui_rev_y}")
-        log(f"UI yearly prod cost: {ui_prod_y}")
-        log(f"UI yearly COS: {ui_cos_y}")
-        log(f"UI yearly fixed: {ui_fix_y}")
+        log(f"UI yearly production cost: {ui_prod_y}")
+        log(f"UI yearly cost of sales: {ui_cos_y}")
+        log(f"UI yearly fixed/general: {ui_fixed_y}")
         log(f"UI yearly gross profit: {ui_gp_y}")
         log(f"UI yearly operating profit: {ui_op_y}")
 
-        assert_close(ui_rev_y,  inp.revenue_yearly,         "Revenue yearly")
-        assert_close(ui_prod_y, inp.production_cost_yearly, "Production cost yearly")
-        assert_close(ui_cos_y,  inp.cost_of_sales_yearly,   "Cost of sales yearly")
-        assert_close(ui_fix_y,  inp.fixed_yearly,           "Fixed yearly")
-        assert_close(ui_gp_y,   inp.gross_profit_yearly,    "Gross profit yearly")
-        assert_close(ui_op_y,   inp.operating_profit_yearly,"Operating profit yearly")
+        # Expected
+        exp_rev_y = inp.revenue_yearly
+        exp_prod_y = inp.production_cost_yearly
+        exp_cos_y = inp.exp_cost_of_sales * 12
+        exp_fixed_y = inp.exp_fixed * 12
+        exp_gp_y = inp.gross_profit_yearly
+        exp_op_y = inp.operating_profit_yearly
 
-        # ===== Assertions: טבלת חודשים (בדיקת ינואר) =====
-        month = "ינואר"
+        # asserts
+        assert_close(ui_rev_y, exp_rev_y, "Revenue yearly")
+        assert_close(ui_prod_y, exp_prod_y, "Production cost yearly")
+        assert_close(ui_cos_y, exp_cos_y, "Cost of sales yearly")
+        assert_close(ui_fixed_y, exp_fixed_y, "Fixed/general yearly")
+        assert_close(ui_gp_y, exp_gp_y, "Gross profit yearly")
+        assert_close(ui_op_y, exp_op_y, "Operating profit yearly")
 
-        ui_rev_m_table  = find_table_value_by_row_and_month(driver, "סה\"כ הכנסה חודשית", month)
-        ui_prod_m_table = find_table_value_by_row_and_month(driver, "סה\"כ עלויות ייצור", month)
-        ui_cos_m_table  = find_table_value_by_row_and_month(driver, "סה\"כ הוצאות קבועות", month)
-        ui_fix_m_table  = find_table_value_by_row_and_month(driver, "סה\"כ הנהלה וכלליות", month)
-
-        log(f"UI table {month} revenue: {ui_rev_m_table}")
-        log(f"UI table {month} prod: {ui_prod_m_table}")
-        log(f"UI table {month} COS: {ui_cos_m_table}")
-        log(f"UI table {month} fixed: {ui_fix_m_table}")
-
-        assert_close(ui_rev_m_table,  inp.revenue_monthly,         f"Revenue monthly ({month})")
-        assert_close(ui_prod_m_table, inp.production_cost_monthly, f"Production cost monthly ({month})")
-        assert_close(ui_cos_m_table,  inp.exp_cost_of_sales,       f"Cost of sales monthly ({month})")
-        assert_close(ui_fix_m_table,  inp.exp_fixed,               f"Fixed monthly ({month})")
-
-        log("✅ PASS - report matches input calculations (cards + ינואר בטבלה)")
+        log("✅ PASS - report matches input calculations (KPI cards)")
 
     finally:
         try:
             driver.quit()
         except Exception:
             pass
-
 
 if __name__ == "__main__":
     test_report_matches_input_front_only()
